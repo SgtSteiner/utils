@@ -12,7 +12,7 @@ def read_seleccion(doc, sheet_name, ini, fin):
         Entrada: objeto workbook, nombre de la hoja, selección de celdas (celda inicio y celda fin)
         Salida: lista con los valores de las celdas
         """
-    logging.debug("Obteniendo datos - " + sheet_name)
+    logging.info("Obteniendo datos - %s", sheet_name)
     cualif = []
     sheet = doc.get_sheet_by_name(sheet_name)
     # Importamos el conocimiento funcional
@@ -30,9 +30,10 @@ def write_datos_generales(doc, datos_gen):
     """ Añade los datos generales del candidato al archivo excel
         Entrada: objeto workbook, lista de datos generales
         """
-    logging.debug("Escribiendo datos - Datos Generales")
+    logging.info("Escribiendo datos - Datos Generales")
     sheet = doc.get_sheet_by_name("Datos Generales")
     for dato_gen in datos_gen:
+        logging.debug("Escribiendo datos - Datos Generales: %s", dato_gen)
         col = 1
         row = sheet.max_row + 1
         for dato in dato_gen:
@@ -44,10 +45,11 @@ def write_experiencia(doc, datos_exp, candidato):
     """ Añade los datos de experiencia del candidato al archivo excel
         Entrada: objeto workbook, lista de datos de experiencia, nombre del candidato
         """
-    logging.debug("Escribiendo datos - Experiencia")
+    logging.info("Escribiendo datos - Experiencia")
     sheet = doc.get_sheet_by_name("Experiencia")
     for proyecto in datos_exp:
         if proyecto[0] is not None:
+            logging.debug("Escribiendo datos - Experiencia: %s", proyecto)
             col = 1
             row = sheet.max_row + 1
             sheet.cell(row=row, column=col).value = candidato
@@ -60,11 +62,12 @@ def write_cualificacion(doc, catalogos, tipo_catalogo, candidato):
     """ Añade los datos de cualificación del candidato al archivo excel
         Entrada: objeto workbook, lista de cualificaciones, tipo de catalogo, nombre del candidato
         """
-    logging.debug("Escribiendo datos - " + tipo_catalogo)
+    logging.info("Escribiendo datos - %s", tipo_catalogo)
     sheet = doc.get_sheet_by_name("Cualificación")
     conocimiento = ""
     area = ""
     for catalogo in catalogos:
+        logging.debug("Escribiendo datos - " + tipo_catalogo + ": " + str(catalogo))
         row = sheet.max_row + 1
         if tipo_catalogo == "Funcional":
             if catalogo[0] is not None:
@@ -87,22 +90,25 @@ def write_cualificacion(doc, catalogos, tipo_catalogo, candidato):
 
 # Define la configuración del archivo de log
 logging.basicConfig(filename="import.log",
-                    level=logging.DEBUG,
+                    level=logging.INFO,
                     format="%(asctime)s:%(levelname)s:%(message)s",
                     filemode="w",
                     )
 
 logging.info("-- INICIO DEL PROCESO --")
-logging.info("Abriendo archivo excel master")
-doc_master = openpyxl.load_workbook(MASTER_EXCEL)
-
+logging.info("Abriendo archivo excel master %s", MASTER_EXCEL)
+try:
+    doc_master = openpyxl.load_workbook(MASTER_EXCEL)
+except (FileNotFoundError):
+    logging.error("No existe el archivo " + MASTER_EXCEL, exc_info=True)
+    raise
 logging.info("Obteniendo listado de archivos del directorio")
 archivos_dir = os.listdir(".")
 
 for archivo in archivos_dir:
     if archivo[-5:].upper() != ".XLSM":
         continue
-    logging.info("Abriendo " + archivo)
+    logging.info("Abriendo %s", archivo)
 
     file = openpyxl.load_workbook(archivo)
 
@@ -129,6 +135,11 @@ for archivo in archivos_dir:
     write_cualificacion(doc_master, con_perfil, "Perfil", nombre_candidato)
     write_cualificacion(doc_master, con_idiomas, "Idiomas", nombre_candidato)
 
-logging.info("Cerrando archivo excel master")
-doc_master.save(MASTER_EXCEL)
+logging.info("Cerrando archivo excel master %s", MASTER_EXCEL)
+try:
+    doc_master.save(MASTER_EXCEL)
+except (PermissionError):
+    logging.error('Fallo al grabar el archivo excel. Archivo ocupado o Permiso denegado', exc_info=True)
+    raise
+logging.info("Archivo cerrado")
 logging.info("-- FIN DEL PROCESO --")
