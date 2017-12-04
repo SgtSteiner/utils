@@ -16,8 +16,8 @@ class Application(ttk.Frame):
     def __init__(self, main_win):
         super().__init__(main_win)
 
-        main_win.geometry("600x390")
-        self.place(relwidth=1, relheight=1)
+        main_win.geometry("600x390")                # Tamaño de la ventana
+        self.place(relwidth=1, relheight=1)         # Ajustamo el frame al tamaño de la ventana
 
         main_win.title("Importación de CV ISBAN")
 
@@ -34,7 +34,7 @@ class Application(ttk.Frame):
         self.labelImport.place(x=5, y=5)
         self.labelCV = ttk.Label(self.labelframe_arch)
         self.labelCV.place(x=80, y=5)
-        self.progressbar = ttk.Progressbar(self.labelframe_arch, length=580, maximum=101)
+        self.progressbar = ttk.Progressbar(self.labelframe_arch, length=575, maximum=101)
         self.progressbar.place(x=5, y=30)
 
         self.labelframe_Detalle = ttk.LabelFrame(self, text="Detalle")
@@ -42,17 +42,13 @@ class Application(ttk.Frame):
         self.scr_Detalle = scrolledtext.ScrolledText(self.labelframe_Detalle, width=78, height=10,
                                                      font=('courier', 8, 'normal'))
         self.scr_Detalle.pack()
-        # self.labelImportCV = ttk.Label(self.labelframe_Detalle, text="Procesando: ")
-        # self.labelImportCV.place(x=5, y=5)
-        # self.labelCV_cualif = ttk.Label(self.labelframe_Detalle)
-        # self.labelCV_cualif.place(x=80, y=5)
-        # self.progressbar_Cualif = ttk.Progressbar(self.labelframe_Detalle, length=380, maximum=101)
-        # self.progressbar_Cualif.place(x=5, y=30)
 
         self.inicio_button = ttk.Button(self, text="Inicio", command=self.inicio_button_clicked)
         self.inicio_button.place(x=275, y=355)
 
     def inicio_button_clicked(self):
+        """ Inicia el proceso de importación de archivos
+        """
 
         if self.inicio_button["text"] == "Salir":
             self.quit()
@@ -74,13 +70,15 @@ class Application(ttk.Frame):
             raise
         logging.info("Obteniendo listado de archivos del directorio")
         archivos_dir = os.listdir(".")
+        archivos_excel = []
 
-        num_archivos = 0
+        # Filtramos aquellos que tienen la extensión .xlsm
         for archivo in archivos_dir:
-            num_archivos += 1
-            self.act_progress(cv_name=archivo, estado_cv=num_archivos * 100 / len(archivos_dir))
-            if archivo[-5:].upper() != ".XLSM":
-                continue
+            if archivo[-5:].upper() == ".XLSM":
+                archivos_excel.append(archivo)
+
+        for archivo in archivos_excel:
+            self.act_progress(cv_name=archivo, estado_cv=100 / len(archivos_excel))
             logging.info("Abriendo %s", archivo)
 
             file = openpyxl.load_workbook(archivo)
@@ -124,7 +122,7 @@ class Application(ttk.Frame):
         logging.info("Archivo cerrado")
         logging.info("-- FIN DEL PROCESO --")
         mBox.showinfo("Proceso finalizado",
-                      "Importación realizada con éxito\nImportados " + str(num_archivos) + " archivos")
+                      "Importación realizada con éxito\nImportados " + str(len(archivos_excel)) + " archivos")
 
     def quit(self):
         main_win.quit()
@@ -132,17 +130,26 @@ class Application(ttk.Frame):
         exit()
 
     def act_progress(self, cv_name, estado_cv=None, cualif_name=None):
+        """ Actualiza el progreso
+            :param cv_name: nombre del cv en procesamiento
+            :param estado_cv: cantidad de avance de la barra de progreso
+            :param cualif_name: nombre de la cualificación en procesamiento
+            """
         self.labelCV["text"] = cv_name
         if estado_cv is not None:
             self.progressbar.step(estado_cv)
         if cualif_name is not None:
             self.scr_Detalle.insert(tk.INSERT, cv_name + " " + cualif_name + "\n")
+            self.scr_Detalle.see(tk.END)
         main_win.update()
 
     def read_seleccion(self, doc, sheet_name, ini, fin):
         """ Devuelve una lista con los valores de las celdas de una fila, según la selección
-            Entrada: objeto workbook, nombre de la hoja, selección de celdas (celda inicio y celda fin)
-            Salida: lista con los valores de las celdas
+            :param doc: objeto workbook
+            :param sheet_name: nombre de la hoja
+            :param ini: celda inicio de la selección
+            :param fin: celda fin de la selección
+            :return: lista con los valores de las celdas
             """
         logging.info("Obteniendo datos - %s", sheet_name)
         cualif = []
@@ -159,7 +166,8 @@ class Application(ttk.Frame):
 
     def write_datos_generales(self, doc, datos_gen):
         """ Añade los datos generales del candidato al archivo excel
-            Entrada: objeto workbook, lista de datos generales
+            :param doc: objeto workbook
+            :param datos_gen: lista de datos generales
             """
         logging.info("Escribiendo datos - Datos Generales")
         sheet = doc.get_sheet_by_name("Datos Generales")
@@ -173,7 +181,9 @@ class Application(ttk.Frame):
 
     def write_experiencia(self, doc, datos_exp, candidato):
         """ Añade los datos de experiencia del candidato al archivo excel
-            Entrada: objeto workbook, lista de datos de experiencia, nombre del candidato
+            :param doc: objeto workbook
+            :param datos_exp: lista de datos de experiencia
+            :param candidato: nombre del candidato
             """
         logging.info("Escribiendo datos - Experiencia")
         sheet = doc.get_sheet_by_name("Experiencia")
@@ -189,7 +199,10 @@ class Application(ttk.Frame):
 
     def write_cualificacion(self, doc, catalogos, tipo_catalogo, candidato):
         """ Añade los datos de cualificación del candidato al archivo excel
-            Entrada: objeto workbook, lista de cualificaciones, tipo de catalogo, nombre del candidato
+            :param doc: objeto workbook
+            :param catalogos: lista de cualificaciones
+            :param tipo_catalogo: tipo de catalogo
+            :param candidato: nombre del candidato
             """
         logging.info("Escribiendo datos - %s", tipo_catalogo)
         sheet = doc.get_sheet_by_name("Cualificación")
