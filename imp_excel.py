@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import scrolledtext
 from tkinter import ttk
 from tkinter import messagebox as mBox
+from tkinter import filedialog
 
 MASTER_EXCEL = "master.xlsx"
 
@@ -16,20 +17,29 @@ class Application(ttk.Frame):
     def __init__(self, main_win):
         super().__init__(main_win)
 
-        main_win.geometry("600x390")                # Tamaño de la ventana
+        main_win.geometry("600x420")                # Tamaño de la ventana
         self.place(relwidth=1, relheight=1)         # Ajustamo el frame al tamaño de la ventana
 
         main_win.title("Importación de CV ISBAN")
 
+        self.current_directory = os.getcwd()        # Obtiene el directorio actual
+
         self.labelframe_Top = ttk.LabelFrame(self)
-        self.labelframe_Top.place(x=5, y=5, relwidth=0.98, height=65)
-        self.labelTop = tk.Label(self.labelframe_Top, text="Importación de archivos CV ISBAN")
+        self.labelframe_Top.place(x=5, y=5, relwidth=0.98, height=95)
+        self.labelTop = tk.Label(self.labelframe_Top,
+                                 text="Importación de archivos CV ISBAN",
+                                 font="bold")
         self.labelTop.pack()
-        self.labelPath = tk.Label(self.labelframe_Top, text="Dir: " + os.getcwd())
+        self.labelPath = tk.Label(self.labelframe_Top,
+                                  text=self.current_directory)
         self.labelPath.pack()
+        self.ruta_button = ttk.Button(self.labelframe_Top,
+                                      text="Seleccionar directorio",
+                                      command=self.directory_button_clicked)
+        self.ruta_button.pack()
 
         self.labelframe_arch = ttk.LabelFrame(self, text="Archivos")
-        self.labelframe_arch.place(x=5, y=80, relwidth=0.98, height=80)
+        self.labelframe_arch.place(x=5, y=110, relwidth=0.98, height=80)
         self.labelImport = ttk.Label(self.labelframe_arch, text="Procesando: ")
         self.labelImport.place(x=5, y=5)
         self.labelCV = ttk.Label(self.labelframe_arch)
@@ -38,13 +48,20 @@ class Application(ttk.Frame):
         self.progressbar.place(x=5, y=30)
 
         self.labelframe_Detalle = ttk.LabelFrame(self, text="Detalle")
-        self.labelframe_Detalle.place(x=5, y=165, relwidth=0.98, height=180)
+        self.labelframe_Detalle.place(x=5, y=195, relwidth=0.98, height=180)
         self.scr_Detalle = scrolledtext.ScrolledText(self.labelframe_Detalle, width=78, height=10,
                                                      font=('courier', 8, 'normal'))
         self.scr_Detalle.pack()
 
         self.inicio_button = ttk.Button(self, text="Inicio", command=self.inicio_button_clicked)
-        self.inicio_button.place(x=275, y=355)
+        self.inicio_button.place(x=275, y=385)
+
+    def directory_button_clicked(self):
+        """ Abre el cuadro de dialogo de seleccionar directorio
+        """
+        self.current_directory = filedialog.askdirectory(initialdir=self.current_directory)
+        self.labelPath["text"] = self.current_directory
+        main_win.update()
 
     def inicio_button_clicked(self):
         """ Inicia el proceso de importación de archivos
@@ -62,12 +79,16 @@ class Application(ttk.Frame):
                             )
 
         logging.info("-- INICIO DEL PROCESO --")
-        logging.info("Abriendo archivo excel master %s", MASTER_EXCEL)
+        logging.info("Abriendo archivo excel master {0}".format(MASTER_EXCEL))
         try:
-            doc_master = openpyxl.load_workbook(MASTER_EXCEL)
+            file_path = os.path.join(self.current_directory, MASTER_EXCEL)
+            doc_master = openpyxl.load_workbook(file_path)
         except FileNotFoundError:
-            logging.error("No existe el archivo " + MASTER_EXCEL, exc_info=True)
-            raise
+            logging.error("No existe el archivo {0}".format(MASTER_EXCEL), exc_info=True)
+            mBox.showerror("Archivo inexistente",
+                           "No se encuentra el archivo {0}\nPor favor, selecciona el directorio correcto".format(
+                               MASTER_EXCEL))
+            return
         logging.info("Obteniendo listado de archivos del directorio")
         archivos_dir = os.listdir(".")
         archivos_excel = []
@@ -79,7 +100,7 @@ class Application(ttk.Frame):
 
         for archivo in archivos_excel:
             self.act_progress(cv_name=archivo, estado_cv=100 / len(archivos_excel))
-            logging.info("Abriendo %s", archivo)
+            logging.info("Abriendo {0}".format(archivo))
 
             file = openpyxl.load_workbook(archivo)
 
@@ -112,7 +133,7 @@ class Application(ttk.Frame):
             self.write_cualificacion(doc_master, con_perfil, "Perfil", nombre_candidato)
             self.write_cualificacion(doc_master, con_idiomas, "Idiomas", nombre_candidato)
 
-        logging.info("Cerrando archivo excel master %s", MASTER_EXCEL)
+        logging.info("Cerrando archivo excel master {0}".format(MASTER_EXCEL))
         try:
             doc_master.save(MASTER_EXCEL)
         except PermissionError:
@@ -122,7 +143,7 @@ class Application(ttk.Frame):
         logging.info("Archivo cerrado")
         logging.info("-- FIN DEL PROCESO --")
         mBox.showinfo("Proceso finalizado",
-                      "Importación realizada con éxito\nImportados " + str(len(archivos_excel)) + " archivos")
+                      "Importación realizada con éxito\nImportados {0} archivos".format(len(archivos_excel)))
 
     def quit(self):
         main_win.quit()
@@ -172,7 +193,7 @@ class Application(ttk.Frame):
         logging.info("Escribiendo datos - Datos Generales")
         sheet = doc.get_sheet_by_name("Datos Generales")
         for dato_gen in datos_gen:
-            logging.debug("Escribiendo datos - Datos Generales: %s", dato_gen)
+            logging.debug("Escribiendo datos - Datos Generales: {0}".format(dato_gen))
             col = 1
             row = sheet.max_row + 1
             for dato in dato_gen:
@@ -189,7 +210,7 @@ class Application(ttk.Frame):
         sheet = doc.get_sheet_by_name("Experiencia")
         for proyecto in datos_exp:
             if proyecto[0] is not None:
-                logging.debug("Escribiendo datos - Experiencia: %s", proyecto)
+                logging.debug("Escribiendo datos - Experiencia: {0}".format(proyecto))
                 col = 1
                 row = sheet.max_row + 1
                 sheet.cell(row=row, column=col).value = candidato
@@ -204,12 +225,12 @@ class Application(ttk.Frame):
             :param tipo_catalogo: tipo de catalogo
             :param candidato: nombre del candidato
             """
-        logging.info("Escribiendo datos - %s", tipo_catalogo)
+        logging.info("Escribiendo datos - {0}".format(tipo_catalogo))
         sheet = doc.get_sheet_by_name("Cualificación")
         conocimiento = ""
         area = ""
         for catalogo in catalogos:
-            logging.debug("Escribiendo datos - " + tipo_catalogo + ": " + str(catalogo))
+            logging.debug("Escribiendo datos - {0}: {1}".format(tipo_catalogo, catalogo))
             row = sheet.max_row + 1
             if tipo_catalogo == "Funcional":
                 if catalogo[0] is not None:
