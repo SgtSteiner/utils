@@ -14,15 +14,15 @@ MASTER_EXCEL = "master.xlsx"
 
 class Application(ttk.Frame):
 
-    def __init__(self, main_win):
-        super().__init__(main_win)
+    def __init__(self, win):
+        super().__init__(win)
 
-        main_win.geometry("600x420")                # Tamaño de la ventana
+        win.geometry("600x420")                # Tamaño de la ventana
         self.place(relwidth=1, relheight=1)         # Ajustamo el frame al tamaño de la ventana
 
-        main_win.title("Importación de CV ISBAN")
+        win.title("Importación de CV ISBAN")
 
-        self.current_directory = os.getcwd()        # Obtiene el directorio actual
+        self.current_directory = os.getcwd()       # Obtiene el directorio actual
 
         self.labelframe_Top = ttk.LabelFrame(self)
         self.labelframe_Top.place(x=5, y=5, relwidth=0.98, height=95)
@@ -59,8 +59,11 @@ class Application(ttk.Frame):
     def directory_button_clicked(self):
         """ Abre el cuadro de dialogo de seleccionar directorio
         """
-        self.current_directory = filedialog.askdirectory(initialdir=self.current_directory)
-        self.labelPath["text"] = self.current_directory
+        directory = filedialog.askdirectory(initialdir=self.current_directory)
+        if directory:
+            self.current_directory = directory
+            self.labelPath["text"] = self.current_directory
+            os.chdir(self.current_directory)
         main_win.update()
 
     def inicio_button_clicked(self):
