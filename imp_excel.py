@@ -1,7 +1,7 @@
 # -*- coding: utf8 -*-
 
 import os
-import openpyxl
+from openpyxl import load_workbook
 import logging
 import tkinter as tk
 from tkinter import scrolledtext
@@ -33,6 +33,13 @@ class Application(ttk.Frame):
         self.labelPath = tk.Label(self.labelframe_Top,
                                   text=self.current_directory)
         self.labelPath.pack()
+        self.plantillaCV = tk.StringVar()
+        self.rbSantec = ttk.Radiobutton(self.labelframe_Top, text="España", variable=self.plantillaCV, value="esp")
+        self.rbSantec.place(x=500, y=30)
+        self.rbIsban = ttk.Radiobutton(self.labelframe_Top, text="ISBAN", variable=self.plantillaCV, value="isban")
+        self.rbIsban.place(x=500, y=50)
+        self.plantillaCV.set("isban")
+
         self.ruta_button = ttk.Button(self.labelframe_Top,
                                       text="Seleccionar directorio",
                                       command=self.directory_button_clicked)
@@ -85,7 +92,7 @@ class Application(ttk.Frame):
         logging.info("Abriendo archivo excel master {0}".format(MASTER_EXCEL))
         try:
             file_path = os.path.join(self.current_directory, MASTER_EXCEL)
-            doc_master = openpyxl.load_workbook(file_path)
+            wb = load_workbook(file_path)
         except FileNotFoundError:
             logging.error("No existe el archivo {0}".format(MASTER_EXCEL), exc_info=True)
             mBox.showerror("Archivo inexistente",
@@ -105,7 +112,7 @@ class Application(ttk.Frame):
             self.act_progress(cv_name=archivo, estado_cv=100 / len(archivos_excel))
             logging.info("Abriendo {0}".format(archivo))
 
-            file = openpyxl.load_workbook(archivo)
+            file = load_workbook(archivo)
 
             # Lectura de datos del candidato
             self.act_progress(cv_name=archivo, cualif_name="Leyendo Datos Generales")
@@ -117,28 +124,30 @@ class Application(ttk.Frame):
             con_tecnico = self.read_seleccion(file, "Catálogo Cualificaciones", 'H10', 'J108')
             con_prod_santander = self.read_seleccion(file, "Catálogo Cualificaciones", 'M12', 'N52')
             con_prod_mercado = self.read_seleccion(file, "Catálogo Cualificaciones", 'Q12', 'R59')
-            con_perfil = self.read_seleccion(file, "Catálogo Cualificaciones", 'U10', 'W126')
+            if self.plantillaCV == "esp":
+                con_perfil = self.read_seleccion(file, "Catálogo Cualificaciones", 'U10', 'W126')
             con_idiomas = self.read_seleccion(file, "Catálogo Cualificaciones", 'Z10', 'AA18')
 
             # Añade los Datos Generales al archivo master
             self.act_progress(cv_name=archivo, cualif_name="Escribiendo Datos Generales")
-            self.write_datos_generales(doc_master, datos_generales)
+            self.write_datos_generales(wb, datos_generales)
             nombre_candidato = datos_generales[0][0] + " " + datos_generales[0][1]
             # Añade los Datos de Experiencia al archivo master
             self.act_progress(cv_name=archivo, cualif_name="Escribiendo Experiencia Laboral")
-            self.write_experiencia(doc_master, datos_experiencia, nombre_candidato)
+            self.write_experiencia(wb, datos_experiencia, nombre_candidato)
             # Añade los Datos de Cualificación al archivo master
             self.act_progress(cv_name=archivo, cualif_name="Escribiendo Cualificaciones")
-            self.write_cualificacion(doc_master, con_funcional, "Funcional", nombre_candidato)
-            self.write_cualificacion(doc_master, con_tecnico, "Técnico", nombre_candidato)
-            self.write_cualificacion(doc_master, con_prod_santander, "Prod_Santander", nombre_candidato)
-            self.write_cualificacion(doc_master, con_prod_mercado, "Prod_Mercado", nombre_candidato)
-            self.write_cualificacion(doc_master, con_perfil, "Perfil", nombre_candidato)
-            self.write_cualificacion(doc_master, con_idiomas, "Idiomas", nombre_candidato)
+            self.write_cualificacion(wb, con_funcional, "Funcional", nombre_candidato)
+            self.write_cualificacion(wb, con_tecnico, "Técnico", nombre_candidato)
+            self.write_cualificacion(wb, con_prod_santander, "Prod_Santander", nombre_candidato)
+            self.write_cualificacion(wb, con_prod_mercado, "Prod_Mercado", nombre_candidato)
+            if self.plantillaCV == "esp":
+                self.write_cualificacion(wb, con_perfil, "Perfil", nombre_candidato)
+            self.write_cualificacion(wb, con_idiomas, "Idiomas", nombre_candidato)
 
         logging.info("Cerrando archivo excel master {0}".format(MASTER_EXCEL))
         try:
-            doc_master.save(MASTER_EXCEL)
+            wb.save(MASTER_EXCEL)
         except PermissionError:
             logging.error('Fallo al grabar el archivo excel. Archivo ocupado o Permiso denegado', exc_info=True)
             raise
@@ -167,9 +176,9 @@ class Application(ttk.Frame):
             self.scr_Detalle.see(tk.END)
         main_win.update()
 
-    def read_seleccion(self, doc, sheet_name, ini, fin):
+    def read_seleccion(self, wb, sheet_name, ini, fin):
         """ Devuelve una lista con los valores de las celdas de una fila, según la selección
-            :param doc: objeto workbook
+            :param wb: objeto workbook
             :param sheet_name: nombre de la hoja
             :param ini: celda inicio de la selección
             :param fin: celda fin de la selección
@@ -177,9 +186,9 @@ class Application(ttk.Frame):
             """
         logging.info("Obteniendo datos - %s", sheet_name)
         cualif = []
-        sheet = doc.get_sheet_by_name(sheet_name)
+        ws = wb(sheet_name)
         # Importamos el conocimiento funcional
-        selection = sheet[ini:fin]
+        selection = ws[ini:fin]
         for rows in selection:
             datos = []
             for column in rows:
@@ -188,53 +197,53 @@ class Application(ttk.Frame):
 
         return cualif
 
-    def write_datos_generales(self, doc, datos_gen):
+    def write_datos_generales(self, wb, datos_gen):
         """ Añade los datos generales del candidato al archivo excel
-            :param doc: objeto workbook
+            :param wb: objeto workbook
             :param datos_gen: lista de datos generales
             """
         logging.info("Escribiendo datos - Datos Generales")
-        sheet = doc.get_sheet_by_name("Datos Generales")
+        ws = wb("Datos Generales")
         for dato_gen in datos_gen:
             logging.debug("Escribiendo datos - Datos Generales: {0}".format(dato_gen))
             col = 1
-            row = sheet.max_row + 1
+            row = ws.max_row + 1
             for dato in dato_gen:
-                sheet.cell(row=row, column=col).value = dato
+                ws.cell(row=row, column=col).value = dato
                 col += 1
 
-    def write_experiencia(self, doc, datos_exp, candidato):
+    def write_experiencia(self, wb, datos_exp, candidato):
         """ Añade los datos de experiencia del candidato al archivo excel
-            :param doc: objeto workbook
+            :param wb: objeto workbook
             :param datos_exp: lista de datos de experiencia
             :param candidato: nombre del candidato
             """
         logging.info("Escribiendo datos - Experiencia")
-        sheet = doc.get_sheet_by_name("Experiencia")
+        ws = wb("Experiencia")
         for proyecto in datos_exp:
             if proyecto[0] is not None:
                 logging.debug("Escribiendo datos - Experiencia: {0}".format(proyecto))
                 col = 1
-                row = sheet.max_row + 1
-                sheet.cell(row=row, column=col).value = candidato
+                row = ws.max_row + 1
+                ws.cell(row=row, column=col).value = candidato
                 for dato in proyecto:
                     col += 1
-                    sheet.cell(row=row, column=col).value = dato
+                    ws.cell(row=row, column=col).value = dato
 
-    def write_cualificacion(self, doc, catalogos, tipo_catalogo, candidato):
+    def write_cualificacion(self, wb, catalogos, tipo_catalogo, candidato):
         """ Añade los datos de cualificación del candidato al archivo excel
-            :param doc: objeto workbook
+            :param wb: objeto workbook
             :param catalogos: lista de cualificaciones
             :param tipo_catalogo: tipo de catalogo
             :param candidato: nombre del candidato
             """
         logging.info("Escribiendo datos - {0}".format(tipo_catalogo))
-        sheet = doc.get_sheet_by_name("Cualificación")
+        ws = wb("Cualificación")
         conocimiento = ""
         area = ""
         for catalogo in catalogos:
             logging.debug("Escribiendo datos - {0}: {1}".format(tipo_catalogo, catalogo))
-            row = sheet.max_row + 1
+            row = ws.max_row + 1
             if tipo_catalogo == "Funcional":
                 if catalogo[0] is not None:
                     conocimiento = catalogo[0]
@@ -244,16 +253,17 @@ class Application(ttk.Frame):
                 if catalogo[0] is not None:
                     conocimiento = catalogo[0]
             if catalogo[-1] is not None:
-                sheet.cell(row=row, column=1).value = candidato
-                sheet.cell(row=row, column=2).value = tipo_catalogo
+                ws.cell(row=row, column=1).value = candidato
+                ws.cell(row=row, column=2).value = tipo_catalogo
                 if area:
-                    sheet.cell(row=row, column=3).value = area
+                    ws.cell(row=row, column=3).value = area
                 else:
-                    sheet.cell(row=row, column=3).value = conocimiento
-                sheet.cell(row=row, column=4).value = catalogo[-2]
-                sheet.cell(row=row, column=5).value = catalogo[-1]
+                    ws.cell(row=row, column=3).value = conocimiento
+                ws.cell(row=row, column=4).value = catalogo[-2]
+                ws.cell(row=row, column=5).value = catalogo[-1]
 
 
-main_win = tk.Tk()
-app = Application(main_win)
-app.mainloop()
+if __name__ == "__main__":
+    main_win = tk.Tk()
+    app = Application(main_win)
+    app.mainloop()
