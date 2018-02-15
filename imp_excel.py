@@ -18,11 +18,11 @@ class Application(ttk.Frame):
         super().__init__(win)
 
         win.geometry("600x420")                # Tamaño de la ventana
-        self.place(relwidth=1, relheight=1)         # Ajustamo el frame al tamaño de la ventana
+        self.place(relwidth=1, relheight=1)    # Ajustamo el frame al tamaño de la ventana
 
         win.title("Importación de CV ISBAN")
 
-        self.current_directory = os.getcwd()       # Obtiene el directorio actual
+        self.current_directory = os.getcwd()   # Obtiene el directorio actual
 
         self.labelframe_Top = ttk.LabelFrame(self)
         self.labelframe_Top.place(x=5, y=5, relwidth=0.98, height=95)
@@ -124,7 +124,7 @@ class Application(ttk.Frame):
             con_tecnico = self.read_seleccion(file, "Catálogo Cualificaciones", 'H10', 'J108')
             con_prod_santander = self.read_seleccion(file, "Catálogo Cualificaciones", 'M12', 'N52')
             con_prod_mercado = self.read_seleccion(file, "Catálogo Cualificaciones", 'Q12', 'R59')
-            if self.plantillaCV == "esp":
+            if self.plantillaCV.get() == "esp":
                 con_perfil = self.read_seleccion(file, "Catálogo Cualificaciones", 'U10', 'W126')
             con_idiomas = self.read_seleccion(file, "Catálogo Cualificaciones", 'Z10', 'AA18')
 
@@ -141,7 +141,7 @@ class Application(ttk.Frame):
             self.write_cualificacion(wb, con_tecnico, "Técnico", nombre_candidato)
             self.write_cualificacion(wb, con_prod_santander, "Prod_Santander", nombre_candidato)
             self.write_cualificacion(wb, con_prod_mercado, "Prod_Mercado", nombre_candidato)
-            if self.plantillaCV == "esp":
+            if self.plantillaCV.get() == "esp":
                 self.write_cualificacion(wb, con_perfil, "Perfil", nombre_candidato)
             self.write_cualificacion(wb, con_idiomas, "Idiomas", nombre_candidato)
 
@@ -186,7 +186,7 @@ class Application(ttk.Frame):
             """
         logging.info("Obteniendo datos - %s", sheet_name)
         cualif = []
-        ws = wb(sheet_name)
+        ws = wb[sheet_name]
         # Importamos el conocimiento funcional
         selection = ws[ini:fin]
         for rows in selection:
@@ -203,7 +203,7 @@ class Application(ttk.Frame):
             :param datos_gen: lista de datos generales
             """
         logging.info("Escribiendo datos - Datos Generales")
-        ws = wb("Datos Generales")
+        ws = wb["Datos Generales"]
         for dato_gen in datos_gen:
             logging.debug("Escribiendo datos - Datos Generales: {0}".format(dato_gen))
             col = 1
@@ -219,7 +219,7 @@ class Application(ttk.Frame):
             :param candidato: nombre del candidato
             """
         logging.info("Escribiendo datos - Experiencia")
-        ws = wb("Experiencia")
+        ws = wb["Experiencia"]
         for proyecto in datos_exp:
             if proyecto[0] is not None:
                 logging.debug("Escribiendo datos - Experiencia: {0}".format(proyecto))
@@ -238,7 +238,7 @@ class Application(ttk.Frame):
             :param candidato: nombre del candidato
             """
         logging.info("Escribiendo datos - {0}".format(tipo_catalogo))
-        ws = wb("Cualificación")
+        ws = wb["Cualificación"]
         conocimiento = ""
         area = ""
         for catalogo in catalogos:
